@@ -1,192 +1,219 @@
-import speech_recognition as sr
-import pyttsx3
-import webbrowser
-import pyautogui
-import subprocess
-import datetime
 import os
+import webbrowser
+import datetime
 
-# Mesh AI Assistant
-engine = pyttsx3.init()
-engine.setProperty("rate", 175)
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.label import Label
+from kivy.uix.button import Button
+from kivy.clock import Clock
+from kivy.utils import platform
 
-recognizer = sr.Recognizer()
-
-
-# اسسٹنٹ کی آواز
-def speak(text):
-    print("MESH:", text)
-    engine.say(text)
-    engine.runAndWait()
+from jnius import autoclass
 
 
-# آپ کی آواز سننا
-def listen():
-    try:
-        with sr.Microphone() as source:
+class MeshAIApp(App):
 
-            print("Listening...")
+    def build(self):
 
-            recognizer.adjust_for_ambient_noise(
-                source, duration=0.5
+        self.title = "Mesh AI Assistant"
+
+        layout = BoxLayout(
+            orientation="vertical",
+            padding=25,
+            spacing=20
+        )
+
+        self.status = Label(
+            text="MESH AI ASSISTANT",
+            font_size=28,
+            color=(0, 0.8, 1, 1)
+        )
+
+        layout.add_widget(self.status)
+
+        self.info = Label(
+            text="Your Personal Voice Assistant",
+            font_size=18
+        )
+
+        layout.add_widget(self.info)
+
+        self.mic_button = Button(
+            text="🎤 START LISTENING",
+            font_size=22,
+            size_hint=(1, 0.3),
+            background_color=(0, 0.5, 1, 1)
+        )
+
+        self.mic_button.bind(
+            on_press=self.listen_voice
+        )
+
+        layout.add_widget(self.mic_button)
+
+        self.command_label = Label(
+            text="Waiting for your command..."
+        )
+
+        layout.add_widget(self.command_label)
+
+        return layout
+
+    def speak(self, text):
+
+        self.status.text = text
+
+        if platform == "android":
+            PythonActivity = autoclass(
+                'org.kivy.android.PythonActivity'
             )
 
-            audio = recognizer.listen(
-                source, timeout=5, phrase_time_limit=7
+            activity = PythonActivity.mActivity
+
+            Context = autoclass(
+                'android.content.Context'
             )
 
-            command = recognizer.recognize_google(
-                audio, language="en-US"
-            ).lower()
+            tts = activity.getSystemService(
+                Context.TEXT_TO_SPEECH
+            )
 
-            print("You:", command)
+            if tts:
+                Locale = autoclass('java.util.Locale')
+                tts.setLanguage(Locale.US)
+                tts.speak(
+                    text,
+                    0,
+                    None,
+                    "mesh_message"
+                )
 
-            return command
+    def listen_voice(self):
 
-    except Exception:
-        return ""
+        self.status.text = "Listening..."
 
-
-# ایپس کھولنا
-def open_app(app):
-
-    apps = {
-        "notepad": "notepad.exe",
-        "calculator": "calc.exe",
-        "paint": "mspaint.exe",
-        "chrome": "chrome.exe",
-        "file explorer": "explorer.exe"
-    }
-
-    if app in apps:
-        try:
-            subprocess.Popen(apps[app])
-            speak(app + " کھول رہا ہوں")
-
-        except Exception:
-            speak("ایپ نہیں کھل سکی")
-
-
-# کمانڈز
-def execute_command(command):
-
-    if "open chrome" in command:
-        open_app("chrome")
-
-    elif "open notepad" in command:
-        open_app("notepad")
-
-    elif "open calculator" in command:
-        open_app("calculator")
-
-    elif "open paint" in command:
-        open_app("paint")
-
-    elif "open file explorer" in command:
-        open_app("file explorer")
-
-    # Instagram
-    elif "open instagram reels" in command:
-        webbrowser.open(
-            "https://www.instagram.com/reels/"
+        self.command_label.text = (
+            "Speak your command..."
         )
-        speak("انسٹاگرام ریلز کھول رہا ہوں")
 
-    elif "open instagram" in command:
-        webbrowser.open(
-            "https://www.instagram.com/"
-        )
-        speak("انسٹاگرام کھول رہا ہوں")
+        if platform == "android":
 
-    # Facebook
-    elif "open facebook" in command:
-        webbrowser.open(
-            "https://www.facebook.com/"
-        )
-        speak("فیس بک کھول رہا ہوں")
+            try:
+                PythonActivity = autoclass(
+                    'org.kivy.android.PythonActivity'
+                )
 
-    # YouTube
-    elif "open youtube" in command:
-        webbrowser.open(
-            "https://www.youtube.com/"
-        )
-        speak("یوٹیوب کھول رہا ہوں")
+                Intent = autoclass(
+                    'android.content.Intent'
+                )
 
-    # Google
-    elif "open google" in command:
-        webbrowser.open(
-            "https://www.google.com/"
-        )
-        speak("گوگل کھول رہا ہوں")
+                RecognizerIntent = autoclass(
+                    'android.speech.RecognizerIntent'
+                )
 
-    # Volume Control
-    elif "volume up" in command:
-        pyautogui.press("volumeup", presses=5)
-        speak("آواز بڑھا دی ہے")
+                intent = Intent(
+                    RecognizerIntent.ACTION_RECOGNIZE_SPEECH
+                )
 
-    elif "volume down" in command:
-        pyautogui.press("volumedown", presses=5)
-        speak("آواز کم کر دی ہے")
+                intent.putExtra(
+                    RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                    RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                )
 
-    elif "mute" in command:
-        pyautogui.press("volumemute")
-        speak("آواز بند کر دی ہے")
+                intent.putExtra(
+                    RecognizerIntent.EXTRA_LANGUAGE,
+                    "en-US"
+                )
 
-    # Scroll
-    elif "scroll down" in command:
-        pyautogui.scroll(-5)
-        speak("نیچے اسکرول کر رہا ہوں")
+                activity = PythonActivity.mActivity
 
-    elif "scroll up" in command:
-        pyautogui.scroll(5)
-        speak("اوپر اسکرول کر رہا ہوں")
+                activity.startActivityForResult(
+                    intent, 1001
+                )
 
-    # Time
-    elif "time" in command:
-        current_time = datetime.datetime.now().strftime(
-            "%I:%M %p"
-        )
-        speak("وقت ہے " + current_time)
+                self.status.text = "Voice recognition opened"
 
-    # Date
-    elif "date" in command:
-        today = datetime.datetime.now().strftime(
-            "%d %B %Y"
-        )
-        speak("آج کی تاریخ " + today)
+            except Exception as e:
+                self.status.text = str(e)
 
-    # Browser بند کرنا
-    elif "close browser" in command:
-        speak("براؤزر بند کر رہا ہوں")
-        os.system("taskkill /im chrome.exe /f")
+        else:
+            self.status.text = "Android device required"
 
-    # Assistant بند کرنا
-    elif "exit assistant" in command or "stop assistant" in command:
-        speak("خدا حافظ، Mesh Assistant بند ہو رہا ہے")
-        return False
+    def execute_command(self, command):
 
-    else:
-        speak("معذرت، میں آپ کی کمانڈ نہیں سمجھ سکا")
+        command = command.lower()
 
-    return True
+        self.command_label.text = command
 
+        if "instagram reels" in command:
 
-# اسسٹنٹ شروع کرنا
-def start_assistant():
+            webbrowser.open(
+                "https://www.instagram.com/reels/"
+            )
 
-    speak("السلام علیکم! میں Mesh AI Assistant ہوں")
+            self.speak("Opening Instagram Reels")
 
-    speak("میں آپ کے حکم کا انتظار کر رہا ہوں")
+        elif "instagram" in command:
 
-    running = True
+            webbrowser.open(
+                "https://www.instagram.com/"
+            )
 
-    while running:
+            self.speak("Opening Instagram")
 
-        command = listen()
+        elif "facebook" in command:
 
-        if command:
-            running = execute_command(command)
+            webbrowser.open(
+                "https://www.facebook.com/"
+            )
+
+            self.speak("Opening Facebook")
+
+        elif "youtube" in command:
+
+            webbrowser.open(
+                "https://www.youtube.com/"
+            )
+
+            self.speak("Opening YouTube")
+
+        elif "google" in command:
+
+            webbrowser.open(
+                "https://www.google.com/"
+            )
+
+            self.speak("Opening Google")
+
+        elif "time" in command:
+
+            now = datetime.datetime.now().strftime(
+                "%I:%M %p"
+            )
+
+            self.speak("The time is " + now)
+
+        elif "date" in command:
+
+            today = datetime.datetime.now().strftime(
+                "%d %B %Y"
+            )
+
+            self.speak("Today's date is " + today)
+
+        elif "scroll down" in command:
+
+            self.speak("Scroll down command received")
+
+        elif "scroll up" in command:
+
+            self.speak("Scroll up command received")
+
+        else:
+
+            self.speak("Command not recognized")
 
 
 if __name__ == "__main__":
-    start_assistant()
+    MeshAIApp().run()
